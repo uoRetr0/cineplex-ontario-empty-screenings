@@ -10,6 +10,15 @@ class FakeElement {
     this.className = '';
     this.children = [];
     this.listeners = new Map();
+    this.attributes = new Map();
+    this.classList = {
+      add: (className) => {
+        this.className = sortedClassName(`${this.className} ${className}`);
+      },
+      remove: (className) => {
+        this.className = sortedClassName(this.className.split(/\s+/).filter((name) => name && name !== className).join(' '));
+      }
+    };
   }
 
   addEventListener(type, listener) {
@@ -27,6 +36,10 @@ class FakeElement {
   replaceChildren(...children) {
     this.children = children;
   }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
 }
 
 class FakeSelect extends FakeElement {
@@ -41,6 +54,10 @@ class FakeSelect extends FakeElement {
       this.value = this.options[0]?.value || '';
     }
   }
+}
+
+function sortedClassName(value) {
+  return [...new Set(String(value).split(/\s+/).filter(Boolean))].sort().join(' ');
 }
 
 class FakeDocument {
@@ -115,6 +132,58 @@ test('city selection is not reset when async city options finish loading', async
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(city.value, 'toronto');
+});
+
+test('static city fallback keeps default cities when generated data is partial', async () => {
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  form.elements = { city, date, threshold, cineplex, movie };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), {
+    document: new FakeDocument(form, new FakeElement(), new FakeElement()),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.value = value;
+      }
+    },
+    fetch(url) {
+      if (String(url) === 'api/cities') {
+        return Promise.resolve({
+          ok: false,
+          async json() {
+            return { error: 'Not found' };
+          }
+        });
+      }
+
+      if (String(url) === 'data/index.json') {
+        return Promise.resolve({
+          ok: true,
+          async json() {
+            return { dates: [{ city: 'ottawa', date: '2026-05-24' }] };
+          }
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    }
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.ok(city.options.some((option) => option.value === 'ottawa'));
+  assert.ok(city.options.some((option) => option.value === 'toronto'));
+  assert.ok(city.options.some((option) => option.value === 'london'));
 });
 
 test('changing city loads screenings for the selected city', async () => {

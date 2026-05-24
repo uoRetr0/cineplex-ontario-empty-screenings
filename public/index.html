@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Empty Screenings</title>
+    <meta name="description" content="Find Cineplex screenings with very few occupied seats across Ontario cities.">
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
@@ -26,8 +27,9 @@
             </label>
             <label>
               <span>Max occupied</span>
-              <input type="number" name="threshold" min="0" value="0" inputmode="numeric">
+              <input type="number" name="threshold" min="0" value="0" inputmode="numeric" aria-describedby="threshold-help">
             </label>
+            <p id="threshold-help" class="field-help">0 means completely empty.</p>
             <label>
               <span>Cineplex</span>
               <select name="cineplex">
@@ -40,14 +42,14 @@
                 <option value="">All movies</option>
               </select>
             </label>
-            <button type="submit">Refresh</button>
+            <button type="submit">Scan</button>
           </form>
         </header>
 
         <section class="results-card">
           <div class="results-heading">
             <h2>Screenings</h2>
-            <span id="status">Loading...</span>
+            <span id="status" aria-live="polite">Loading...</span>
           </div>
           <div id="showings" class="showings"></div>
         </section>

@@ -54,7 +54,7 @@ movieInput.addEventListener('change', applyFilters);
 
 loadCities().finally(() => {
   if (!primaryFilterChanged) {
-    markNeedsRefresh();
+    loadShowings();
   }
 });
 
@@ -72,7 +72,10 @@ async function loadCities() {
 async function loadStaticCities() {
   try {
     const body = await fetchJson('data/index.json');
-    const citySlugs = sortedValues(new Set((body.dates || []).map((entry) => entry.city).filter(Boolean)));
+    const citySlugs = sortedValues(new Set([
+      ...defaultCities.map(([slug]) => slug),
+      ...(body.dates || []).map((entry) => entry.city).filter(Boolean)
+    ]));
     if (citySlugs.length > 0) {
       const selectedCity = cityInput.value;
       replaceOptions(cityInput, '', citySlugs.map((slug) => ({ value: slug, label: defaultCityLabels.get(slug) || slug })));
@@ -90,6 +93,8 @@ async function loadShowings() {
   loadController = new AbortController();
   const { signal } = loadController;
 
+  form.classList.add('is-loading');
+  showingsEl.setAttribute('aria-busy', 'true');
   statusEl.textContent = allShowings.length === 0 ? 'Loading...' : 'Refreshing...';
 
   try {
@@ -107,14 +112,16 @@ async function loadShowings() {
       return;
     }
 
-    statusEl.textContent = 'Unable to load screenings';
+    statusEl.textContent = 'Screenings unavailable';
     if (allShowings.length === 0) {
-      showingsEl.replaceChildren(emptyMessage(error.message));
+      showingsEl.replaceChildren(emptyState('Could not load screenings', friendlyLoadError(error)));
     }
   } finally {
     if (loadController?.signal === signal) {
       loadController = null;
     }
+    form.classList.remove('is-loading');
+    showingsEl.setAttribute('aria-busy', 'false');
   }
 }
 
@@ -132,8 +139,8 @@ function markNeedsRefresh() {
     return;
   }
 
-  statusEl.textContent = 'Press Refresh to load screenings';
-  showingsEl.replaceChildren(emptyMessage('Choose a city and date, then press Refresh.'));
+  statusEl.textContent = 'Ready to scan';
+  showingsEl.replaceChildren(emptyState('Choose a scan', 'Pick a city and date, then scan for quiet screenings.'));
 }
 
 async function fetchShowings(city, date, signal) {
@@ -214,6 +221,8 @@ function updateFilterOptions(showings) {
 
   cineplexInput.value = hasOption(cineplexInput, selectedCineplex) ? selectedCineplex : '';
   movieInput.value = hasOption(movieInput, selectedMovie) ? selectedMovie : '';
+  cineplexInput.disabled = theatreNames.size === 0;
+  movieInput.disabled = movieTitles.size === 0;
 }
 
 function renderShowings(showings, { filtered = false } = {}) {
@@ -228,9 +237,7 @@ function renderShowings(showings, { filtered = false } = {}) {
   }
 
   if (showings.length === 0) {
-    showingsEl.replaceChildren(emptyMessage(dataStale
-      ? 'Choose a city and date, then press Refresh.'
-      : 'No matching screenings found. Try raising the threshold or clearing the filters.'));
+    showingsEl.replaceChildren(emptyResultsMessage({ filtered }));
     return;
   }
 
@@ -256,6 +263,22 @@ function renderShowings(showings, { filtered = false } = {}) {
   }
 
   showingsEl.replaceChildren(fragment);
+}
+
+function emptyResultsMessage({ filtered }) {
+  if (dataStale) {
+    return emptyState('Choose a scan', 'Pick a city and date, then scan for quiet screenings.');
+  }
+
+  if (allShowings.length === 0) {
+    return emptyState('No screenings found', `No reserved-seat Cineplex screenings were found for ${selectedCityLabel()} on ${displayDate(dateInput.value)}.`);
+  }
+
+  if (filtered) {
+    return emptyState('No matches', 'Try a higher max occupied number, or clear the theatre and movie filters.');
+  }
+
+  return emptyState('No empty screenings', 'There are screenings for this city and date, but none are completely empty. Raise max occupied to widen the search.');
 }
 
 function groupByTheatre(showings) {
@@ -345,11 +368,37 @@ function formatAuditorium(value) {
   return `AUD ${label}`;
 }
 
-function emptyMessage(message) {
-  const element = document.createElement('p');
-  element.className = 'empty';
-  element.textContent = message;
+function emptyState(title, message) {
+  const element = document.createElement('article');
+  element.className = 'empty-state';
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  const body = document.createElement('p');
+  body.textContent = message;
+  element.append(heading, body);
   return element;
+}
+
+function friendlyLoadError(error) {
+  const message = String(error?.message || '');
+  if (message.includes('api/showings') || message.includes('data/showings')) {
+    return `No saved scan is available for ${selectedCityLabel()} on ${displayDate(dateInput.value)} yet. Try another city or date.`;
+  }
+
+  return 'Cineplex data could not be reached. Wait a moment and scan again.';
+}
+
+function selectedCityLabel() {
+  return cityInput.selectedOptions?.[0]?.textContent || defaultCityLabels.get(cityInput.value) || cityInput.value || 'this city';
+}
+
+function displayDate(value) {
+  if (!value) {
+    return 'the selected date';
+  }
+
+  const [year, month, day] = String(value).split('-');
+  return year && month && day ? `${month}/${day}/${year}` : value;
 }
 
 function replaceOptions(select, defaultLabel, values) {
