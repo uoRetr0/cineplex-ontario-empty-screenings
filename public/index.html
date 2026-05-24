@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ON Empty Screenings</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="left-pane">
+        <header class="hero">
+          <p class="eyebrow">ON movie theatres</p>
+          <h1>ON Empty Screenings</h1>
+          <p class="lede">Pick an ON city and find Cineplex movie showings where there are few or no occupied seats.</p>
+          <form id="filters" class="filters">
+            <label>
+              <span>City</span>
+              <select name="city">
+                <option value="ottawa">Ottawa</option>
+              </select>
+            </label>
+            <label>
+              <span>Date</span>
+              <input type="date" name="date" required>
+            </label>
+            <label>
+              <span>Max occupied</span>
+              <input type="number" name="threshold" min="0" value="0" inputmode="numeric">
+            </label>
+            <label>
+              <span>Cineplex</span>
+              <select name="cineplex">
+                <option value="">All Cineplex theatres</option>
+              </select>
+            </label>
+            <label>
+              <span>Movie</span>
+              <select name="movie">
+                <option value="">All movies</option>
+              </select>
+            </label>
+            <button type="submit">Refresh</button>
+          </form>
+        </header>
+
+        <section class="results-card">
+          <div class="results-heading">
+            <h2>Screenings</h2>
+            <span id="status">Loading...</span>
+          </div>
+          <div id="showings" class="showings"></div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Inspired by <a href="https://walzr.com/empty-screenings">the original Empty Screenings</a>, created by <a href="https://walzr.com">Riley Walz</a>.</p>
+          <p>Unofficial project. Not affiliated with Cineplex.</p>
+          <p>Server-side calls are cached and polled slowly to avoid unnecessary load.</p>
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>

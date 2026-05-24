@@ -1,0 +1,14 @@
+{
+  "name": "on-empty-screenings",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:pages-data": "node scripts/build-pages-data.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
