@@ -56,8 +56,9 @@ loadCities().finally(markNeedsRefresh);
 async function loadCities() {
   try {
     const body = await fetchJson('api/cities');
+    const selectedCity = cityInput.value;
     replaceOptions(cityInput, '', body.cities.map((city) => ({ value: city.slug, label: city.label })));
-    cityInput.value = body.defaultCity || 'ottawa';
+    cityInput.value = hasOption(cityInput, selectedCity) ? selectedCity : body.defaultCity || 'ottawa';
   } catch {
     await loadStaticCities();
   }
@@ -68,13 +69,15 @@ async function loadStaticCities() {
     const body = await fetchJson('data/index.json');
     const citySlugs = sortedValues(new Set((body.dates || []).map((entry) => entry.city).filter(Boolean)));
     if (citySlugs.length > 0) {
+      const selectedCity = cityInput.value;
       replaceOptions(cityInput, '', citySlugs.map((slug) => ({ value: slug, label: defaultCityLabels.get(slug) || slug })));
+      cityInput.value = hasOption(cityInput, selectedCity) ? selectedCity : 'ottawa';
     }
   } catch {
     // The default city list is already rendered in the HTML/JS fallback.
   }
 
-  cityInput.value = hasOption(cityInput, 'ottawa') ? 'ottawa' : cityInput.options[0]?.value || 'ottawa';
+  cityInput.value = hasOption(cityInput, cityInput.value) ? cityInput.value : hasOption(cityInput, 'ottawa') ? 'ottawa' : cityInput.options[0]?.value || 'ottawa';
 }
 
 async function loadShowings() {

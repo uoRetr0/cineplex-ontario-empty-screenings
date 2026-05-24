@@ -85,7 +85,7 @@ test('GET /api/showings returns normalized empty reserved screenings', async () 
         id: '7247:1001',
         theatreId: '7247',
         showtimeId: '1001',
-        city: null,
+        city: 'Ottawa',
         theatreName: 'Cineplex Odeon South Keys Cinemas',
         movieTitle: 'Quiet Movie',
         filmUrl: '/movie/quiet-movie',
@@ -224,6 +224,60 @@ test('GET /api/showings filters theatres outside the selected province when meta
     const body = await response.json();
     assert.deepEqual(body.showings.map((showing) => showing.theatreName), ['Ontario Theatre']);
     assert.equal(body.showings[0].city, 'Toronto');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('GET /api/showings filters known out-of-province theatres when metadata is missing', async () => {
+  const cineplex = {
+    async getTheatres() {
+      return [
+        { id: '7428', name: 'Scotiabank Theatre Ottawa' },
+        { id: '9268', name: 'Cinéma Starcité Gatineau' },
+        { id: '9406', name: 'Cinéma Banque Scotia Montréal' }
+      ];
+    },
+    async getShowtimes(theatreId) {
+      return {
+        movies: [
+          {
+            name: `Movie ${theatreId}`,
+            experiences: [
+              {
+                name: 'Regular',
+                sessions: [
+                  {
+                    vistaSessionId: theatreId,
+                    showStartDateTime: '2026-05-23T21:50:00',
+                    showStartDateTimeUtc: '2026-05-24T01:50:00Z',
+                    isReservedSeating: true,
+                    isShowtimeEnabledOnline: true,
+                    isInThePast: false,
+                    auditorium: 'Aud 4'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+    },
+    async getSeatAvailability() {
+      return { seatAvailabilities: { A1: 'Available' } };
+    }
+  };
+
+  const server = createServer({ cineplex });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/showings?city=ottawa&date=2026-05-23&threshold=0`);
+    assert.equal(response.status, 200);
+
+    const body = await response.json();
+    assert.deepEqual(body.showings.map((showing) => showing.theatreName), ['Scotiabank Theatre Ottawa']);
+    assert.equal(body.showings[0].city, 'Ottawa');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

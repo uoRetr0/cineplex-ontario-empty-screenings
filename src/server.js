@@ -15,6 +15,86 @@ const STATIC_ROUTES = new Map([
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']]
 ]);
 const SEAT_AREA_NAMES = ['standardSeats', 'dboxSeats', 'balconySeats'];
+const KNOWN_THEATRE_LOCATIONS = new Map([
+  ['7112', { city: 'London', regionCode: 'ON' }],
+  ['7115', { city: 'Toronto', regionCode: 'ON' }],
+  ['7117', { city: 'Guelph', regionCode: 'ON' }],
+  ['7122', { city: 'Mississauga', regionCode: 'ON' }],
+  ['7123', { city: 'Oakville', regionCode: 'ON' }],
+  ['7130', { city: 'Toronto', regionCode: 'ON' }],
+  ['7135', { city: 'Barrie', regionCode: 'ON' }],
+  ['7138', { city: 'Sarnia', regionCode: 'ON' }],
+  ['7139', { city: 'Toronto', regionCode: 'ON' }],
+  ['7199', { city: 'Toronto', regionCode: 'ON' }],
+  ['7206', { city: 'Welland', regionCode: 'ON' }],
+  ['7213', { city: 'Markham', regionCode: 'ON' }],
+  ['7240', { city: 'Scarborough', regionCode: 'ON' }],
+  ['7241', { city: 'Clarington', regionCode: 'ON' }],
+  ['7247', { city: 'Ottawa', regionCode: 'ON' }],
+  ['7248', { city: 'Ajax', regionCode: 'ON' }],
+  ['7249', { city: 'Barrie', regionCode: 'ON' }],
+  ['7253', { city: 'Toronto', regionCode: 'ON' }],
+  ['7256', { city: 'Niagara Falls', regionCode: 'ON' }],
+  ['7257', { city: 'Windsor', regionCode: 'ON' }],
+  ['7259', { city: 'Kingston', regionCode: 'ON' }],
+  ['7260', { city: 'Toronto', regionCode: 'ON' }],
+  ['7262', { city: 'Cornwall', regionCode: 'ON' }],
+  ['7263', { city: 'Peterborough', regionCode: 'ON' }],
+  ['7264', { city: 'Owen Sound', regionCode: 'ON' }],
+  ['7265', { city: 'North Bay', regionCode: 'ON' }],
+  ['7266', { city: 'Sault Ste. Marie', regionCode: 'ON' }],
+  ['7267', { city: 'St. Thomas', regionCode: 'ON' }],
+  ['7268', { city: 'Waterloo', regionCode: 'ON' }],
+  ['7269', { city: 'Cambridge', regionCode: 'ON' }],
+  ['7270', { city: 'Orangeville', regionCode: 'ON' }],
+  ['7271', { city: 'Midland', regionCode: 'ON' }],
+  ['7272', { city: 'Guelph', regionCode: 'ON' }],
+  ['7273', { city: 'Oakville', regionCode: 'ON' }],
+  ['7274', { city: 'Orillia', regionCode: 'ON' }],
+  ['7284', { city: 'Aurora', regionCode: 'ON' }],
+  ['7285', { city: 'Milton', regionCode: 'ON' }],
+  ['7286', { city: 'Ottawa', regionCode: 'ON' }],
+  ['7288', { city: 'Collingwood', regionCode: 'ON' }],
+  ['7289', { city: 'Oshawa', regionCode: 'ON' }],
+  ['7290', { city: 'Hamilton', regionCode: 'ON' }],
+  ['7291', { city: 'Brantford', regionCode: 'ON' }],
+  ['7296', { city: 'Kitchener', regionCode: 'ON' }],
+  ['7297', { city: 'Chatham', regionCode: 'ON' }],
+  ['7298', { city: 'Toronto', regionCode: 'ON' }],
+  ['7311', { city: 'Ottawa', regionCode: 'ON' }],
+  ['7312', { city: 'Pickering', regionCode: 'ON' }],
+  ['7313', { city: 'Mississauga', regionCode: 'ON' }],
+  ['7400', { city: 'Toronto', regionCode: 'ON' }],
+  ['7402', { city: 'Toronto', regionCode: 'ON' }],
+  ['7404', { city: 'Scarborough', regionCode: 'ON' }],
+  ['7405', { city: 'Richmond Hill', regionCode: 'ON' }],
+  ['7406', { city: 'Toronto', regionCode: 'ON' }],
+  ['7407', { city: 'Newmarket', regionCode: 'ON' }],
+  ['7408', { city: 'Vaughan', regionCode: 'ON' }],
+  ['7409', { city: 'Belleville', regionCode: 'ON' }],
+  ['7411', { city: 'Brampton', regionCode: 'ON' }],
+  ['7413', { city: 'Burlington', regionCode: 'ON' }],
+  ['7415', { city: 'Ancaster', regionCode: 'ON' }],
+  ['7420', { city: 'Mississauga', regionCode: 'ON' }],
+  ['7422', { city: 'London', regionCode: 'ON' }],
+  ['7424', { city: 'Ottawa', regionCode: 'ON' }],
+  ['7428', { city: 'Ottawa', regionCode: 'ON' }],
+  ['7429', { city: 'Sudbury', regionCode: 'ON' }],
+  ['7430', { city: 'Thunder Bay', regionCode: 'ON' }],
+  ['9268', { city: 'Gatineau', regionCode: 'QC' }],
+  ['9153', { city: 'Vaudreuil-Dorion', regionCode: 'QC' }],
+  ['9407', { city: 'Kirkland', regionCode: 'QC' }],
+  ['9408', { city: 'Laval', regionCode: 'QC' }],
+  ['9121', { city: 'Montreal', regionCode: 'QC' }],
+  ['9195', { city: 'Montreal', regionCode: 'QC' }],
+  ['9109', { city: 'Montreal', regionCode: 'QC' }],
+  ['9406', { city: 'Montreal', regionCode: 'QC' }],
+  ['2111', { city: 'Winnipeg', regionCode: 'MB' }],
+  ['2112', { city: 'Winnipeg', regionCode: 'MB' }],
+  ['2114', { city: 'Winnipeg', regionCode: 'MB' }],
+  ['2401', { city: 'Winnipeg', regionCode: 'MB' }],
+  ['2402', { city: 'Winnipeg', regionCode: 'MB' }]
+]);
 
 export function createServer({
   cineplex = createCineplexClient(),
@@ -268,17 +348,32 @@ function normalizeTheatres(value, location) {
   for (const theatre of theatres) {
     const id = String(theatre.id || theatre.theatreId || theatre.locationId || theatre.cineplexTheatreId);
     const name = theatre.name || theatre.theatreName || theatre.locationName;
-    const regionCode = normalizeRegionCode(theatre);
+    const knownLocation = KNOWN_THEATRE_LOCATIONS.get(id) || inferTheatreLocation(theatre);
+    const regionCode = normalizeRegionCode(theatre) || knownLocation?.regionCode || null;
     if (regionCode && regionCode !== location.regionCode) {
       continue;
     }
 
     if (id && name) {
-      normalized.push({ id, name, city: normalizeTheatreCity(theatre) });
+      normalized.push({ id, name, city: normalizeTheatreCity(theatre) || knownLocation?.city || null });
     }
   }
 
   return normalized;
+}
+
+function inferTheatreLocation(theatre) {
+  const name = String(theatre.name || theatre.theatreName || theatre.locationName || '').toLowerCase();
+
+  if (/\b(gatineau|dorion|kirkland|laval|royalmount|angrignon|forum|montr[eé]al|montreal|brossard|ste-foy|sainte-foy|qu[eé]bec|quebec|beauport|longueuil|sherbrooke|saint-bruno|st-bruno)\b/i.test(name)) {
+    return { regionCode: 'QC' };
+  }
+
+  if (/\b(kildonan|st\.?\s*vital|northgate|mcgillivray|winnipeg)\b/i.test(name)) {
+    return { regionCode: 'MB' };
+  }
+
+  return null;
 }
 
 function normalizeRegionCode(theatre) {
