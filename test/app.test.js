@@ -186,6 +186,51 @@ test('static city fallback keeps default cities when generated data is partial',
   assert.ok(city.options.some((option) => option.value === 'london'));
 });
 
+test('initial city loading does not scan screenings automatically', async () => {
+  const requestedUrls = [];
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  form.elements = { city, date, threshold, cineplex, movie };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), {
+    document: new FakeDocument(form, new FakeElement(), new FakeElement()),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.value = value;
+      }
+    },
+    fetch(url) {
+      requestedUrls.push(String(url));
+      return Promise.resolve({
+        ok: true,
+        async json() {
+          return {
+            defaultCity: 'ottawa',
+            cities: [
+              { slug: 'ottawa', label: 'Ottawa' },
+              { slug: 'toronto', label: 'Toronto' }
+            ]
+          };
+        }
+      });
+    }
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(requestedUrls, ['api/cities']);
+});
+
 test('changing city loads screenings for the selected city', async () => {
   const requestedUrls = [];
   const form = new FakeElement();
@@ -241,6 +286,65 @@ test('changing city loads screenings for the selected city', async () => {
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.ok(requestedUrls.some((url) => url.startsWith('api/showings?city=toronto&')));
+});
+
+test('repeated city scans reuse the browser cache briefly', async () => {
+  const requestedUrls = [];
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  form.elements = { city, date, threshold, cineplex, movie };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), {
+    document: new FakeDocument(form, new FakeElement(), new FakeElement()),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.value = value;
+      }
+    },
+    fetch(url) {
+      requestedUrls.push(String(url));
+      if (String(url) === 'api/cities') {
+        return Promise.resolve({
+          ok: true,
+          async json() {
+            return {
+              defaultCity: 'ottawa',
+              cities: [
+                { slug: 'ottawa', label: 'Ottawa' },
+                { slug: 'toronto', label: 'Toronto' }
+              ]
+            };
+          }
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        async json() {
+          return { showings: [] };
+        }
+      });
+    }
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  city.value = 'toronto';
+  city.dispatch('change');
+  await new Promise((resolve) => setImmediate(resolve));
+  city.dispatch('change');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(requestedUrls.filter((url) => url.startsWith('api/showings?city=toronto&')).length, 1);
 });
 
 test('auditorium labels use a short AUD prefix', async () => {

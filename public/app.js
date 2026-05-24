@@ -7,6 +7,7 @@ const movieInput = form.elements.movie;
 const statusEl = document.querySelector('#status');
 const showingsEl = document.querySelector('#showings');
 const timeFormatter = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
+const SHOWINGS_CACHE_TTL_MS = 90_000;
 const defaultCities = [
   ['ottawa', 'Ottawa'],
   ['toronto', 'Toronto'],
@@ -37,13 +38,14 @@ let allShowings = [];
 let loadController = null;
 let dataStale = true;
 let primaryFilterChanged = false;
+const showingsResponseCache = new Map();
 
 dateInput.value = todayLocal();
 replaceOptions(cityInput, '', defaultCities.map(([slug, label]) => ({ value: slug, label })));
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
-  loadShowings();
+  loadShowings({ force: true });
 });
 
 cityInput.addEventListener('change', loadSelectedCity);
@@ -54,7 +56,7 @@ movieInput.addEventListener('change', applyFilters);
 
 loadCities().finally(() => {
   if (!primaryFilterChanged) {
-    loadShowings();
+    markNeedsRefresh();
   }
 });
 
@@ -88,7 +90,7 @@ async function loadStaticCities() {
   cityInput.value = hasOption(cityInput, cityInput.value) ? cityInput.value : hasOption(cityInput, 'ottawa') ? 'ottawa' : cityInput.options[0]?.value || 'ottawa';
 }
 
-async function loadShowings() {
+async function loadShowings({ force = false } = {}) {
   loadController?.abort();
   loadController = new AbortController();
   const { signal } = loadController;
@@ -98,7 +100,7 @@ async function loadShowings() {
   statusEl.textContent = allShowings.length === 0 ? 'Loading...' : 'Refreshing...';
 
   try {
-    const body = await fetchShowings(cityInput.value, dateInput.value, signal);
+    const body = await fetchShowings(cityInput.value, dateInput.value, signal, { force });
     if (signal.aborted) {
       return;
     }
@@ -140,21 +142,32 @@ function markNeedsRefresh() {
   }
 
   statusEl.textContent = 'Ready to scan';
-  showingsEl.replaceChildren(emptyState('Choose a scan', 'Pick a city and date, then scan for quiet screenings.'));
+  showingsEl.replaceChildren(emptyState('Choose a scan', 'Pick a city and date, then refresh the screenings.'));
 }
 
-async function fetchShowings(city, date, signal) {
+async function fetchShowings(city, date, signal, { force = false } = {}) {
+  const cacheKey = `${city}:${date}`;
+  const cached = showingsResponseCache.get(cacheKey);
+  if (!force && cached && cached.expiresAt > Date.now()) {
+    return cached.body;
+  }
+
   const params = new URLSearchParams({ city, date, all: '1' });
 
   try {
-    return await fetchJson(`api/showings?${params}`, signal);
+    return cacheShowingsResponse(cacheKey, await fetchJson(`api/showings?${params}`, signal));
   } catch (apiError) {
     try {
-      return await fetchJson(`data/showings-${city}-${date}.json`, signal);
+      return cacheShowingsResponse(cacheKey, await fetchJson(`data/showings-${city}-${date}.json`, signal));
     } catch {
       throw apiError;
     }
   }
+}
+
+function cacheShowingsResponse(cacheKey, body) {
+  showingsResponseCache.set(cacheKey, { body, expiresAt: Date.now() + SHOWINGS_CACHE_TTL_MS });
+  return body;
 }
 
 async function fetchJson(url, signal) {
@@ -267,7 +280,7 @@ function renderShowings(showings, { filtered = false } = {}) {
 
 function emptyResultsMessage({ filtered }) {
   if (dataStale) {
-    return emptyState('Choose a scan', 'Pick a city and date, then scan for quiet screenings.');
+    return emptyState('Choose a scan', 'Pick a city and date, then refresh the screenings.');
   }
 
   if (allShowings.length === 0) {
