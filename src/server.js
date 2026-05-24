@@ -349,17 +349,26 @@ function normalizeTheatres(value, location) {
     const id = String(theatre.id || theatre.theatreId || theatre.locationId || theatre.cineplexTheatreId);
     const name = theatre.name || theatre.theatreName || theatre.locationName;
     const knownLocation = KNOWN_THEATRE_LOCATIONS.get(id) || inferTheatreLocation(theatre);
-    const regionCode = normalizeRegionCode(theatre) || knownLocation?.regionCode || null;
+    const city = knownLocation?.city || normalizeTheatreCity(theatre) || null;
+    const regionCode = knownLocation?.regionCode || normalizeRegionCode(theatre) || null;
     if (regionCode && regionCode !== location.regionCode) {
       continue;
     }
 
+    if (city && normalizeCityForComparison(city) !== normalizeCityForComparison(location.city)) {
+      continue;
+    }
+
     if (id && name) {
-      normalized.push({ id, name, city: normalizeTheatreCity(theatre) || knownLocation?.city || null });
+      normalized.push({ id, name, city });
     }
   }
 
   return normalized;
+}
+
+function normalizeCityForComparison(city) {
+  return String(city || '').trim().toLowerCase().replace(/[-\s]+/g, ' ');
 }
 
 function inferTheatreLocation(theatre) {

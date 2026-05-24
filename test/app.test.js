@@ -116,3 +116,93 @@ test('city selection is not reset when async city options finish loading', async
 
   assert.equal(city.value, 'toronto');
 });
+
+test('changing city loads screenings for the selected city', async () => {
+  const requestedUrls = [];
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  form.elements = { city, date, threshold, cineplex, movie };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), {
+    document: new FakeDocument(form, new FakeElement(), new FakeElement()),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.value = value;
+      }
+    },
+    fetch(url) {
+      requestedUrls.push(String(url));
+      if (String(url) === 'api/cities') {
+        return Promise.resolve({
+          ok: true,
+          async json() {
+            return {
+              defaultCity: 'ottawa',
+              cities: [
+                { slug: 'ottawa', label: 'Ottawa' },
+                { slug: 'toronto', label: 'Toronto' }
+              ]
+            };
+          }
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        async json() {
+          return { showings: [] };
+        }
+      });
+    }
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  city.value = 'toronto';
+  city.dispatch('change');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.ok(requestedUrls.some((url) => url.startsWith('api/showings?city=toronto&')));
+});
+
+test('auditorium labels use a short AUD prefix', async () => {
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  form.elements = { city, date, threshold, cineplex, movie };
+  const context = {
+    document: new FakeDocument(form, new FakeElement(), new FakeElement()),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.value = value;
+      }
+    },
+    fetch() {
+      return new Promise(() => {});
+    }
+  };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), context);
+
+  assert.equal(context.formatAuditorium('7'), 'AUD 7');
+  assert.equal(context.formatAuditorium('Auditorium 12'), 'AUD 12');
+  assert.equal(context.formatAuditorium('Aud 4'), 'AUD 4');
+});

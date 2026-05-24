@@ -127,7 +127,7 @@ test('GET /api/showings passes the selected city to theatre discovery', async ()
   const cineplex = {
     async getTheatres(_date, location) {
       requestedLocation = location;
-      return [{ id: '9153', name: 'Cineplex Outside Ottawa', city: 'Toronto', regionCode: 'ON' }];
+      return [{ id: '9999', name: 'Cineplex Outside Ottawa', city: 'Toronto', regionCode: 'ON' }];
     },
     async getShowtimes() {
       return {
@@ -170,7 +170,7 @@ test('GET /api/showings passes the selected city to theatre discovery', async ()
     assert.equal(requestedLocation.city, 'Toronto');
     assert.equal(body.city, 'toronto');
     assert.equal(body.showings[0].city, 'Toronto');
-    assert.equal(body.showings[0].theatreId, '9153');
+    assert.equal(body.showings[0].theatreId, '9999');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -236,6 +236,59 @@ test('GET /api/showings filters known out-of-province theatres when metadata is 
         { id: '7428', name: 'Scotiabank Theatre Ottawa' },
         { id: '9268', name: 'Cinéma Starcité Gatineau' },
         { id: '9406', name: 'Cinéma Banque Scotia Montréal' }
+      ];
+    },
+    async getShowtimes(theatreId) {
+      return {
+        movies: [
+          {
+            name: `Movie ${theatreId}`,
+            experiences: [
+              {
+                name: 'Regular',
+                sessions: [
+                  {
+                    vistaSessionId: theatreId,
+                    showStartDateTime: '2026-05-23T21:50:00',
+                    showStartDateTimeUtc: '2026-05-24T01:50:00Z',
+                    isReservedSeating: true,
+                    isShowtimeEnabledOnline: true,
+                    isInThePast: false,
+                    auditorium: 'Aud 4'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+    },
+    async getSeatAvailability() {
+      return { seatAvailabilities: { A1: 'Available' } };
+    }
+  };
+
+  const server = createServer({ cineplex });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/showings?city=ottawa&date=2026-05-23&threshold=0`);
+    assert.equal(response.status, 200);
+
+    const body = await response.json();
+    assert.deepEqual(body.showings.map((showing) => showing.theatreName), ['Scotiabank Theatre Ottawa']);
+    assert.equal(body.showings[0].city, 'Ottawa');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('GET /api/showings filters known theatres outside the selected city even with bad metadata', async () => {
+  const cineplex = {
+    async getTheatres() {
+      return [
+        { id: '7428', name: 'Scotiabank Theatre Ottawa' },
+        { id: '7262', name: 'Galaxy Cinemas Cornwall', city: 'Ottawa', regionCode: 'ON' }
       ];
     },
     async getShowtimes(theatreId) {

@@ -36,6 +36,7 @@ const defaultCityLabels = new Map(defaultCities);
 let allShowings = [];
 let loadController = null;
 let dataStale = true;
+let primaryFilterChanged = false;
 
 dateInput.value = todayLocal();
 replaceOptions(cityInput, '', defaultCities.map(([slug, label]) => ({ value: slug, label })));
@@ -45,13 +46,17 @@ form.addEventListener('submit', (event) => {
   loadShowings();
 });
 
-cityInput.addEventListener('change', markNeedsRefresh);
-dateInput.addEventListener('change', markNeedsRefresh);
+cityInput.addEventListener('change', loadSelectedCity);
+dateInput.addEventListener('change', loadSelectedCity);
 thresholdInput.addEventListener('input', applyFilters);
 cineplexInput.addEventListener('change', applyFilters);
 movieInput.addEventListener('change', applyFilters);
 
-loadCities().finally(markNeedsRefresh);
+loadCities().finally(() => {
+  if (!primaryFilterChanged) {
+    markNeedsRefresh();
+  }
+});
 
 async function loadCities() {
   try {
@@ -106,7 +111,16 @@ async function loadShowings() {
     if (allShowings.length === 0) {
       showingsEl.replaceChildren(emptyMessage(error.message));
     }
+  } finally {
+    if (loadController?.signal === signal) {
+      loadController = null;
+    }
   }
+}
+
+function loadSelectedCity() {
+  primaryFilterChanged = true;
+  loadShowings();
 }
 
 function markNeedsRefresh() {
@@ -319,10 +333,16 @@ function formatTime(value) {
 function formatAuditorium(value) {
   const label = String(value || '').trim();
   if (!label) {
-    return 'Auditorium ?';
+    return 'AUD ?';
   }
 
-  return /^(aud|auditorium)\b/i.test(label) ? label : `Auditorium ${label}`;
+  const match = label.match(/^(?:auditorium|aud)\s*(.*)$/i);
+  if (match) {
+    const number = match[1].trim();
+    return number ? `AUD ${number}` : 'AUD';
+  }
+
+  return `AUD ${label}`;
 }
 
 function emptyMessage(message) {
