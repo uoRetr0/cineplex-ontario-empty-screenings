@@ -21,6 +21,7 @@
 
 html {
   background: var(--canvas);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -96,7 +97,7 @@ h1 {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(150px, 0.7fr) minmax(140px, 0.65fr);
+  grid-template-columns: minmax(220px, 1.2fr) minmax(150px, 0.7fr) minmax(140px, 0.65fr) auto;
   align-items: end;
   gap: 12px;
   margin-top: 34px;
@@ -111,6 +112,7 @@ label {
 }
 
 .field-help {
+  grid-column: 3 / 5;
   align-self: end;
   min-height: 38px;
   padding: 10px 2px 0;
@@ -119,32 +121,55 @@ label {
   line-height: 1.35;
 }
 
-input,
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 2px;
+  color: var(--ink);
+}
+
+.checkbox-field input {
+  width: 16px;
+  min-height: 16px;
+  accent-color: var(--ink);
+}
+
+.checkbox-field span {
+  color: var(--ink);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+input:not([type="checkbox"]),
 select {
   width: 100%;
   min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 13px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0 0 2px;
   color: var(--ink);
-  background: rgba(8, 8, 8, 0.82);
+  font-size: 1rem;
+  background: transparent;
   outline: none;
   transition: border-color 180ms ease, background-color 180ms ease, opacity 180ms ease;
 }
 
-input:disabled,
+input:not([type="checkbox"]):disabled,
 select:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
-input:focus,
+input:not([type="checkbox"]):focus,
 select:focus {
-  border-color: rgba(247, 244, 238, 0.52);
-  background: #111111;
+  border-bottom-color: rgba(247, 244, 238, 0.62);
+  background: transparent;
 }
 
-input:focus-visible,
+input:not([type="checkbox"]):focus-visible,
 select:focus-visible,
 button:focus-visible {
   outline: 2px solid rgba(247, 244, 238, 0.72);
@@ -152,7 +177,7 @@ button:focus-visible {
 }
 
 button {
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #ffffff;
   border-radius: 6px;
   padding: 0 18px;
@@ -318,6 +343,12 @@ button:active {
   background: rgba(255, 255, 255, 0.035);
 }
 
+.empty-state--plain {
+  border: 0;
+  padding: 24px 0;
+  background: transparent;
+}
+
 .empty-state h3 {
   color: var(--ink);
   font-size: 1rem;
@@ -450,34 +481,149 @@ button:active {
   .filters {
     grid-template-columns: 1fr 1fr;
   }
+
+  .field-help {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 620px) {
+  body {
+    background:
+      radial-gradient(circle at 18% -6%, rgba(255, 255, 255, 0.1), transparent 20rem),
+      linear-gradient(180deg, #0b0a09 0%, var(--canvas) 54%);
+  }
+
+  body::before {
+    opacity: 0.26;
+    background-size: 100% 34px;
+  }
+
+  .app-shell {
+    width: min(100% - 24px, 420px);
+    padding: 22px 0 36px;
+  }
+
+  .hero {
+    padding-bottom: 34px;
+  }
+
   h1 {
-    font-size: 2.05rem;
+    font-size: clamp(2.3rem, 13vw, 3.3rem);
+    line-height: 0.9;
+  }
+
+  .lede {
+    margin-top: 14px;
+    font-size: 1rem;
+    line-height: 1.52;
   }
 
   .filters {
     grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  label {
+    gap: 8px;
+    font-size: 0.78rem;
+  }
+
+  input:not([type="checkbox"]),
+  select {
+    min-height: 48px;
+  }
+
+  button {
+    min-height: 48px;
+    border-radius: 11px;
+  }
+
+  .checkbox-field {
+    justify-content: flex-start;
+    min-height: 36px;
+    padding: 2px 0 0;
+  }
+
+  .checkbox-field input {
+    order: 0;
   }
 
   .field-help {
     min-height: 0;
-    padding-top: 0;
+    margin-top: -4px;
+    padding: 0 2px;
+  }
+
+  .results-heading {
+    display: grid;
+    gap: 6px;
+    padding-bottom: 10px;
+  }
+
+  .results-heading span {
+    font-size: 0.68rem;
+    line-height: 1.4;
   }
 
   .results-card {
     margin-inline: 0;
   }
 
+  .theatre-group {
+    padding: 24px 0 10px;
+  }
+
+  .theatre-heading {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .theatre-heading h3 {
+    font-size: 1.22rem;
+    line-height: 1.1;
+  }
+
+  .theatre-heading p {
+    text-align: left;
+  }
+
   .showing-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 16px 0;
+    grid-template-columns: 76px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 68px;
+    padding: 14px 0;
+  }
+
+  .showing-row strong {
+    font-size: 0.9rem;
+  }
+
+  .showing-row span {
+    font-size: 0.76rem;
   }
 
   .seat-count {
-    justify-items: start;
+    min-width: 54px;
+    justify-items: end;
+  }
+
+  .empty-state {
+    margin-top: 10px;
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .empty-state--plain {
+    padding: 18px 0;
+  }
+
+  .site-footer {
+    margin-top: 40px;
+    font-size: 0.82rem;
   }
 
   .seat-row {

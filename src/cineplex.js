@@ -4,37 +4,38 @@ export const DEFAULT_CITY_SLUG = 'ottawa';
 
 const LOCATION_DEFAULTS = { language: 'en', region: 'Ontario', regionCode: 'ON', country: 'Canada' };
 const SUPPORTED_CITY_DATA = [
-  ['ottawa', 'Ottawa', '45.4215', '-75.6972', 'K1P', '25'],
-  ['toronto', 'Toronto', '43.6532', '-79.3832', 'M5H', '25'],
-  ['scarborough', 'Scarborough', '43.7764', '-79.2318', 'M1P', '18'],
-  ['mississauga', 'Mississauga', '43.5890', '-79.6441', 'L5B', '18'],
-  ['brampton', 'Brampton', '43.7315', '-79.7624', 'L6Y', '18'],
-  ['vaughan', 'Vaughan', '43.8563', '-79.5085', 'L4K', '18'],
-  ['markham', 'Markham', '43.8561', '-79.3370', 'L3R', '18'],
-  ['richmond-hill', 'Richmond Hill', '43.8828', '-79.4403', 'L4B', '18'],
-  ['oakville', 'Oakville', '43.4675', '-79.6877', 'L6H', '18'],
-  ['burlington', 'Burlington', '43.3255', '-79.7990', 'L7R', '18'],
-  ['hamilton', 'Hamilton', '43.2557', '-79.8711', 'L8P', '22'],
-  ['waterloo', 'Waterloo', '43.4643', '-80.5204', 'N2L', '18'],
-  ['kitchener', 'Kitchener', '43.4516', '-80.4925', 'N2G', '18'],
-  ['guelph', 'Guelph', '43.5448', '-80.2482', 'N1H', '18'],
-  ['london', 'London', '42.9849', '-81.2453', 'N6A', '22'],
-  ['windsor', 'Windsor', '42.3149', '-83.0364', 'N9A', '18'],
-  ['barrie', 'Barrie', '44.3894', '-79.6903', 'L4M', '18'],
-  ['oshawa', 'Oshawa', '43.8971', '-78.8658', 'L1G', '18'],
-  ['kingston', 'Kingston', '44.2312', '-76.4860', 'K7L', '18'],
-  ['niagara-falls', 'Niagara Falls', '43.0896', '-79.0849', 'L2E', '18'],
-  ['sudbury', 'Sudbury', '46.4917', '-80.9930', 'P3E', '25'],
-  ['thunder-bay', 'Thunder Bay', '48.3809', '-89.2477', 'P7B', '25']
+  ['ottawa', 'Ottawa', 'Ottawa', '45.4215', '-75.6972', 'K1P', '25'],
+  ['toronto', 'Toronto', 'Toronto', '43.6532', '-79.3832', 'M5H', '25'],
+  ['scarborough', 'Scarborough', 'Scarborough', '43.7764', '-79.2318', 'M1P', '18'],
+  ['mississauga', 'Mississauga', 'Mississauga', '43.5890', '-79.6441', 'L5B', '18'],
+  ['brampton', 'Brampton', 'Brampton', '43.7315', '-79.7624', 'L6Y', '18'],
+  ['vaughan', 'Vaughan', 'Vaughan', '43.8563', '-79.5085', 'L4K', '18'],
+  ['markham', 'Markham', 'Markham', '43.8561', '-79.3370', 'L3R', '18'],
+  ['richmond-hill', 'Richmond Hill', 'Richmond Hill', '43.8828', '-79.4403', 'L4B', '18'],
+  ['oakville', 'Oakville', 'Oakville', '43.4675', '-79.6877', 'L6H', '18'],
+  ['burlington', 'Burlington', 'Burlington', '43.3255', '-79.7990', 'L7R', '18'],
+  ['hamilton', 'Hamilton', 'Hamilton', '43.2557', '-79.8711', 'L8P', '22'],
+  ['waterloo', 'Waterloo', 'Waterloo', '43.4643', '-80.5204', 'N2L', '18'],
+  ['kitchener', 'Kitchener', 'Kitchener', '43.4516', '-80.4925', 'N2G', '18'],
+  ['guelph', 'Guelph', 'Guelph', '43.5448', '-80.2482', 'N1H', '18'],
+  ['london', 'London', 'London', '42.9849', '-81.2453', 'N6A', '22'],
+  ['windsor', 'Windsor', 'Windsor', '42.3149', '-83.0364', 'N9A', '18'],
+  ['barrie', 'Barrie', 'Barrie', '44.3894', '-79.6903', 'L4M', '18'],
+  ['oshawa', 'Oshawa', 'Oshawa', '43.8971', '-78.8658', 'L1G', '18'],
+  ['kingston', 'Kingston', 'Kingston', '44.2312', '-76.4860', 'K7L', '18'],
+  ['niagara-falls', 'Niagara Falls', 'Niagara Falls', '43.0896', '-79.0849', 'L2E', '18'],
+  ['sudbury', 'Sudbury', 'Sudbury', '46.4917', '-80.9930', 'P3E', '25'],
+  ['thunder-bay', 'Thunder Bay', 'Thunder Bay', '48.3809', '-89.2477', 'P7B', '25']
 ];
-const SUPPORTED_CITIES = SUPPORTED_CITY_DATA.map(([slug, city, latitude, longitude, postalCode, accuracyKm]) => ({
+const SUPPORTED_CITIES = SUPPORTED_CITY_DATA.map(([slug, label, city, latitude, longitude, postalCode, accuracyKm, cityAliases = []]) => ({
   slug,
   city,
-  label: city,
+  label,
   latitude,
   longitude,
   postalCode,
   accuracyKm,
+  cityAliases: [city, ...cityAliases],
   ...LOCATION_DEFAULTS
 }));
 const SUPPORTED_CITIES_BY_SLUG = new Map(SUPPORTED_CITIES.map((city) => [city.slug, city]));

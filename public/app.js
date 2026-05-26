@@ -2,6 +2,7 @@ const form = document.querySelector('#filters');
 const cityInput = form.elements.city;
 const dateInput = form.elements.date;
 const thresholdInput = form.elements.threshold;
+const anyOccupiedInput = form.elements.anyOccupied || { checked: false, addEventListener() {} };
 const cineplexInput = form.elements.cineplex;
 const movieInput = form.elements.movie;
 const statusEl = document.querySelector('#status');
@@ -33,6 +34,58 @@ const defaultCities = [
   ['thunder-bay', 'Thunder Bay']
 ];
 const defaultCityLabels = new Map(defaultCities);
+const defaultCineplexTheatresByCity = {
+  ottawa: [
+    'Cineplex Cinemas Ottawa',
+    'Cineplex Cinemas Lansdowne and VIP',
+    'Cineplex Odeon Barrhaven Cinemas',
+    'Cineplex Odeon South Keys Cinemas',
+    'Scotiabank Theatre Ottawa'
+  ],
+  toronto: [
+    'Cineplex Cinemas Empress Walk',
+    'Cineplex Cinemas Fairview Mall',
+    'Cineplex Cinemas Queensway and VIP',
+    'Cineplex Cinemas Varsity and VIP',
+    'Cineplex Cinemas Yonge-Dundas and VIP',
+    'Cineplex Cinemas Yonge-Eglinton and VIP',
+    'Cineplex Cinemas Yorkdale',
+    'Cineplex Odeon Eglinton Town Centre Cinemas',
+    'Cineplex VIP Cinemas Don Mills (age restricted 19+)',
+    'Scotiabank Theatre Toronto'
+  ],
+  scarborough: [
+    'Cineplex Cinemas Scarborough',
+    'Cineplex Odeon Morningside Cinemas'
+  ],
+  mississauga: [
+    'Cineplex Cinemas Courtney Park',
+    'Cineplex Cinemas Mississauga Square One',
+    'Cineplex Cinemas Winston Churchill & VIP',
+    'Cineplex Junxion Erin Mills'
+  ],
+  brampton: ['SilverCity Brampton Cinemas'],
+  vaughan: ['Cineplex Cinemas Vaughan'],
+  markham: ['Cineplex Cinemas Markham and VIP'],
+  'richmond-hill': ['SilverCity Richmond Hill Cinemas'],
+  oakville: [
+    'Cineplex Cinemas Oakville and VIP',
+    'Cineplex Cinemas Winston Churchill & VIP'
+  ],
+  burlington: ['SilverCity Burlington Cinemas'],
+  hamilton: ['Cineplex Cinemas Ancaster', 'Cineplex Cinemas Hamilton Mountain'],
+  waterloo: ['Galaxy Cinemas Waterloo'],
+  kitchener: ['Cineplex Cinemas Kitchener and VIP'],
+  guelph: ['Cineplex Cinemas Pergola Commons', 'Galaxy Cinemas Guelph'],
+  london: ['Cineplex Odeon Westmount Cinemas and VIP', 'SilverCity London Cinemas'],
+  windsor: ['Cineplex Odeon Devonshire Mall Cinemas'],
+  barrie: ['Galaxy Cinemas Barrie'],
+  oshawa: ['Cineplex Odeon Oshawa Cinemas'],
+  kingston: ['Cineplex Odeon Gardiners Road Cinemas'],
+  'niagara-falls': ['Cineplex Odeon Niagara Square Cinemas'],
+  sudbury: ['SilverCity Sudbury Cinemas'],
+  'thunder-bay': ['SilverCity Thunder Bay Cinemas']
+};
 
 let allShowings = [];
 let loadController = null;
@@ -42,6 +95,7 @@ const showingsResponseCache = new Map();
 
 dateInput.value = todayLocal();
 replaceOptions(cityInput, '', defaultCities.map(([slug, label]) => ({ value: slug, label })));
+updateFilterOptions(allShowings);
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -51,6 +105,7 @@ form.addEventListener('submit', (event) => {
 cityInput.addEventListener('change', loadSelectedCity);
 dateInput.addEventListener('change', loadSelectedCity);
 thresholdInput.addEventListener('input', applyFilters);
+anyOccupiedInput.addEventListener('change', applyFilters);
 cineplexInput.addEventListener('change', applyFilters);
 movieInput.addEventListener('change', applyFilters);
 
@@ -66,6 +121,7 @@ async function loadCities() {
     const selectedCity = cityInput.value;
     replaceOptions(cityInput, '', body.cities.map((city) => ({ value: city.slug, label: city.label })));
     cityInput.value = hasOption(cityInput, selectedCity) ? selectedCity : body.defaultCity || 'ottawa';
+    updateFilterOptions(allShowings);
   } catch {
     await loadStaticCities();
   }
@@ -88,6 +144,7 @@ async function loadStaticCities() {
   }
 
   cityInput.value = hasOption(cityInput, cityInput.value) ? cityInput.value : hasOption(cityInput, 'ottawa') ? 'ottawa' : cityInput.options[0]?.value || 'ottawa';
+  updateFilterOptions(allShowings);
 }
 
 async function loadShowings({ force = false } = {}) {
@@ -129,6 +186,7 @@ async function loadShowings({ force = false } = {}) {
 
 function loadSelectedCity() {
   primaryFilterChanged = true;
+  updateFilterOptions([]);
   loadShowings();
 }
 
@@ -142,7 +200,7 @@ function markNeedsRefresh() {
   }
 
   statusEl.textContent = 'Ready to scan';
-  showingsEl.replaceChildren(emptyState('Choose a scan', 'Pick a city and date, then refresh the screenings.'));
+  showingsEl.replaceChildren(emptyState('Choose a scan', 'Pick a city and date, then refresh the screenings.', { plain: true }));
 }
 
 async function fetchShowings(city, date, signal, { force = false } = {}) {
@@ -191,17 +249,18 @@ function applyFilters() {
   const cineplex = cineplexInput.value;
   const movie = movieInput.value;
   const threshold = parseThreshold(thresholdInput.value);
+  const showAnyOccupancy = anyOccupiedInput.checked;
   const filtered = [];
 
   for (const showing of allShowings) {
-    if (showing.occupiedCount <= threshold
+    if ((showAnyOccupancy || showing.occupiedCount <= threshold)
       && (!cineplex || showing.theatreName === cineplex)
       && (!movie || showing.movieTitle === movie)) {
       filtered.push(showing);
     }
   }
 
-  renderShowings(filtered, { filtered: Boolean(cineplex || movie || threshold > 0) });
+  renderShowings(filtered, { filtered: Boolean(cineplex || movie || (!showAnyOccupancy && threshold > 0)) });
 }
 
 function prepareShowings(showings) {
@@ -217,7 +276,7 @@ function prepareShowings(showings) {
 function updateFilterOptions(showings) {
   const selectedCineplex = cineplexInput.value;
   const selectedMovie = movieInput.value;
-  const theatreNames = new Set();
+  const theatreNames = new Set(defaultCineplexTheatresByCity[cityInput.value] || []);
   const movieTitles = new Set();
 
   for (const showing of showings) {
@@ -280,7 +339,7 @@ function renderShowings(showings, { filtered = false } = {}) {
 
 function emptyResultsMessage({ filtered }) {
   if (dataStale) {
-    return emptyState('Choose a scan', 'Pick a city and date, then refresh the screenings.');
+    return emptyState('Choose a scan', 'Pick a city and date, then refresh the screenings.', { plain: true });
   }
 
   if (allShowings.length === 0) {
@@ -381,9 +440,9 @@ function formatAuditorium(value) {
   return `AUD ${label}`;
 }
 
-function emptyState(title, message) {
+function emptyState(title, message, { plain = false } = {}) {
   const element = document.createElement('article');
-  element.className = 'empty-state';
+  element.className = plain ? 'empty-state empty-state--plain' : 'empty-state';
   const heading = document.createElement('h3');
   heading.textContent = title;
   const body = document.createElement('p');

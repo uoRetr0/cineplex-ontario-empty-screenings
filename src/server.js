@@ -86,8 +86,12 @@ const KNOWN_THEATRE_LOCATIONS = new Map([
   ['9407', { city: 'Kirkland', regionCode: 'QC' }],
   ['9408', { city: 'Laval', regionCode: 'QC' }],
   ['9121', { city: 'Montreal', regionCode: 'QC' }],
+  ['9172', { city: 'Montreal', regionCode: 'QC' }],
+  ['9185', { city: 'Brossard', regionCode: 'QC' }],
+  ['9188', { city: 'Sherbrooke', regionCode: 'QC' }],
   ['9195', { city: 'Montreal', regionCode: 'QC' }],
   ['9109', { city: 'Montreal', regionCode: 'QC' }],
+  ['9401', { city: 'Montreal', regionCode: 'QC' }],
   ['9406', { city: 'Montreal', regionCode: 'QC' }],
   ['2111', { city: 'Winnipeg', regionCode: 'MB' }],
   ['2112', { city: 'Winnipeg', regionCode: 'MB' }],
@@ -355,7 +359,8 @@ function normalizeTheatres(value, location) {
       continue;
     }
 
-    if (city && normalizeCityForComparison(city) !== normalizeCityForComparison(location.city)) {
+    const locationCities = [location.city, ...(location.cityAliases || [])].map(normalizeCityForComparison);
+    if (city && !locationCities.includes(normalizeCityForComparison(city))) {
       continue;
     }
 

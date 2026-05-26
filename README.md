@@ -1,6 +1,6 @@
 # ON Empty Screenings
 
-Find Cineplex movie showings in Ontario where there are few or no occupied seats.
+Find Cineplex movie showings in Ontario cities where there are few or no occupied seats.
 
 Site: https://uoretr0.github.io/on-empty-screenings/
 

@@ -64,5 +64,6 @@ test('supported city registry exposes Ontario choices', () => {
 
   assert.ok(cities.some((city) => city.slug === 'ottawa'));
   assert.ok(cities.some((city) => city.slug === 'toronto'));
+  assert.equal(cities.some((city) => city.slug === 'barrhaven'), false);
   assert.deepEqual(getCityLocation('missing-city'), null);
 });

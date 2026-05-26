@@ -116,6 +116,7 @@ test('GET /api/cities returns selectable Ontario cities', async () => {
 
     const body = await response.json();
     assert.equal(body.defaultCity, 'ottawa');
+    assert.equal(body.cities.some((city) => city.slug === 'barrhaven'), false);
     assert.ok(body.cities.some((city) => city.slug === 'toronto'));
   } finally {
     await new Promise((resolve) => server.close(resolve));
@@ -171,6 +172,63 @@ test('GET /api/showings passes the selected city to theatre discovery', async ()
     assert.equal(body.city, 'toronto');
     assert.equal(body.showings[0].city, 'Toronto');
     assert.equal(body.showings[0].theatreId, '9999');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('GET /api/showings includes Barrhaven theatre in Ottawa results', async () => {
+  let requestedLocation;
+  const cineplex = {
+    async getTheatres(_date, location) {
+      requestedLocation = location;
+      return [
+        { id: '7286', name: 'Cineplex Odeon Barrhaven Cinemas' },
+        { id: '9172', name: 'Cinéma Cineplex Odeon Quartier Latin' }
+      ];
+    },
+    async getShowtimes(theatreId) {
+      return {
+        movies: [
+          {
+            name: `Movie ${theatreId}`,
+            experiences: [
+              {
+                name: 'Regular',
+                sessions: [
+                  {
+                    vistaSessionId: theatreId,
+                    showStartDateTime: '2026-05-23T21:50:00',
+                    showStartDateTimeUtc: '2026-05-24T01:50:00Z',
+                    isReservedSeating: true,
+                    isShowtimeEnabledOnline: true,
+                    isInThePast: false,
+                    auditorium: 'Aud 4'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+    },
+    async getSeatAvailability() {
+      return { seatAvailabilities: { A1: 'Available' } };
+    }
+  };
+
+  const server = createServer({ cineplex });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/showings?city=ottawa&date=2026-05-23&threshold=0`);
+    assert.equal(response.status, 200);
+
+    const body = await response.json();
+    assert.equal(requestedLocation.slug, 'ottawa');
+    assert.equal(requestedLocation.city, 'Ottawa');
+    assert.equal(body.city, 'ottawa');
+    assert.deepEqual(body.showings.map((showing) => showing.theatreName), ['Cineplex Odeon Barrhaven Cinemas']);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -235,6 +293,7 @@ test('GET /api/showings filters known out-of-province theatres when metadata is 
       return [
         { id: '7428', name: 'Scotiabank Theatre Ottawa' },
         { id: '9268', name: 'Cinéma Starcité Gatineau' },
+        { id: '9172', name: 'Cinéma Cineplex Odeon Quartier Latin' },
         { id: '9406', name: 'Cinéma Banque Scotia Montréal' }
       ];
     },
