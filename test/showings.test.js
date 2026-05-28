@@ -123,6 +123,64 @@ test('GET /api/cities returns selectable Ontario cities', async () => {
   }
 });
 
+test('GET /api/showings skips showtimes with unavailable seat data', async () => {
+  const cineplex = {
+    async getTheatres() {
+      return [{ id: '7247', name: 'Cineplex Odeon South Keys Cinemas' }];
+    },
+    async getShowtimes() {
+      return {
+        movies: [
+          {
+            name: 'Quiet Movie',
+            experiences: [
+              {
+                name: 'Regular',
+                sessions: [
+                  {
+                    vistaSessionId: '1001',
+                    showStartDateTime: '2026-05-23T19:00:00',
+                    isReservedSeating: true,
+                    isShowtimeEnabledOnline: true,
+                    isInThePast: false
+                  },
+                  {
+                    vistaSessionId: '1002',
+                    showStartDateTime: '2026-05-23T21:00:00',
+                    isReservedSeating: true,
+                    isShowtimeEnabledOnline: true,
+                    isInThePast: false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+    },
+    async getSeatAvailability(_theatreId, showtimeId) {
+      if (showtimeId === '1002') {
+        throw new Error('Seat availability unavailable');
+      }
+
+      return { seatAvailabilities: { A1: 'Available' } };
+    }
+  };
+
+  const server = createServer({ cineplex });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/showings?date=2026-05-23&threshold=0`);
+    assert.equal(response.status, 200);
+
+    const body = await response.json();
+    assert.deepEqual(body.showings.map((showing) => showing.showtimeId), ['1001']);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('GET /api/showings passes the selected city to theatre discovery', async () => {
   let requestedLocation;
   const cineplex = {

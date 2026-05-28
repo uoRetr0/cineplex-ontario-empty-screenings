@@ -343,6 +343,22 @@ button:active {
   background: rgba(255, 255, 255, 0.035);
 }
 
+.empty-state--error {
+  max-width: 760px;
+  border-color: rgba(255, 99, 71, 0.72);
+  background: rgba(255, 99, 71, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 99, 71, 0.08) inset;
+}
+
+.empty-state--error h3 {
+  color: #ffd8d0;
+  font-size: 1.14rem;
+}
+
+.empty-state--error p {
+  color: #f1c7be;
+}
+
 .empty-state--plain {
   border: 0;
   padding: 24px 0;

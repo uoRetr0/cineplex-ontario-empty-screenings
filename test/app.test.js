@@ -237,7 +237,7 @@ test('initial city loading does not scan screenings automatically', async () => 
   assert.ok(cineplex.options.some((option) => option.value === 'Cineplex Cinemas Ottawa'));
 });
 
-test('changing city loads screenings for the selected city', async () => {
+test('changing city waits for refresh before loading screenings', async () => {
   const requestedUrls = [];
   const form = new FakeElement();
   const city = new FakeSelect();
@@ -289,6 +289,10 @@ test('changing city loads screenings for the selected city', async () => {
   await new Promise((resolve) => setImmediate(resolve));
   city.value = 'toronto';
   city.dispatch('change');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requestedUrls.some((url) => url.startsWith('api/showings?city=toronto&')), false);
+
+  form.dispatch('submit');
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.ok(requestedUrls.some((url) => url.startsWith('api/showings?city=toronto&')));
@@ -369,7 +373,7 @@ test('any occupied toggle shows screenings above the max occupied value', async 
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  city.dispatch('change');
+  form.dispatch('submit');
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(status.textContent, '1 found across 1 Cineplex theatres');
 
@@ -416,7 +420,95 @@ test('choose a scan message is rendered without the empty-state card chrome', as
   assert.equal(showings.children[0].className, 'empty-state empty-state--plain');
 });
 
-test('repeated city scans reuse the browser cache briefly', async () => {
+test('failed refresh keeps previous movie options and shows an error card', async () => {
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  const status = new FakeElement();
+  const showings = new FakeElement();
+  let failShowings = false;
+  form.elements = { city, date, threshold, cineplex, movie };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), {
+    document: new FakeDocument(form, status, showings),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.textContent = label;
+        this.value = value;
+      }
+    },
+    fetch(url) {
+      if (String(url) === 'api/cities') {
+        return Promise.resolve({
+          ok: true,
+          async json() {
+            return { defaultCity: 'ottawa', cities: [{ slug: 'ottawa', label: 'Ottawa' }] };
+          }
+        });
+      }
+
+      if (failShowings) {
+        return Promise.resolve({
+          ok: false,
+          async json() {
+            return { error: 'Cineplex data could not be reached' };
+          }
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        async json() {
+          return {
+            showings: [
+              {
+                theatreName: 'Cineplex Cinemas Ottawa',
+                city: 'Ottawa',
+                movieTitle: 'Quiet Movie',
+                startLocal: '2026-05-23T19:00:00',
+                auditorium: '1',
+                experienceTypes: ['Regular'],
+                occupiedCount: 0,
+                totalSeats: 100
+              }
+            ]
+          };
+        }
+      });
+    }
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  form.dispatch('submit');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(movie.disabled, false);
+  assert.equal(movie.options.some((option) => option.value === 'Quiet Movie'), true);
+
+  failShowings = true;
+  date.value = '2026-05-24';
+  date.dispatch('change');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(status.textContent, '1 shown from previous results. Press Refresh for selected city/date.');
+
+  form.dispatch('submit');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(movie.disabled, false);
+  assert.equal(movie.options.some((option) => option.value === 'Quiet Movie'), true);
+  assert.equal(status.textContent, 'Error loading new scan');
+  assert.equal(showings.children[0].children[0].className, 'empty-state empty-state--error');
+});
+
+test('manual refreshes request a fresh scan', async () => {
   const requestedUrls = [];
   const form = new FakeElement();
   const city = new FakeSelect();
@@ -469,10 +561,14 @@ test('repeated city scans reuse the browser cache briefly', async () => {
   city.value = 'toronto';
   city.dispatch('change');
   await new Promise((resolve) => setImmediate(resolve));
-  city.dispatch('change');
+  assert.equal(requestedUrls.some((url) => url.startsWith('api/showings?city=toronto&')), false);
+
+  form.dispatch('submit');
+  await new Promise((resolve) => setImmediate(resolve));
+  form.dispatch('submit');
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(requestedUrls.filter((url) => url.startsWith('api/showings?city=toronto&')).length, 1);
+  assert.equal(requestedUrls.filter((url) => url.startsWith('api/showings?city=toronto&')).length, 2);
 });
 
 test('auditorium labels use a short AUD prefix', async () => {

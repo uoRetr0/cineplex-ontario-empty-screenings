@@ -91,6 +91,7 @@ let allShowings = [];
 let loadController = null;
 let dataStale = true;
 let primaryFilterChanged = false;
+let lastLoadError = null;
 const showingsResponseCache = new Map();
 
 dateInput.value = todayLocal();
@@ -102,8 +103,8 @@ form.addEventListener('submit', (event) => {
   loadShowings({ force: true });
 });
 
-cityInput.addEventListener('change', loadSelectedCity);
-dateInput.addEventListener('change', loadSelectedCity);
+cityInput.addEventListener('change', markSelectedScanChanged);
+dateInput.addEventListener('change', markSelectedScanChanged);
 thresholdInput.addEventListener('input', applyFilters);
 anyOccupiedInput.addEventListener('change', applyFilters);
 cineplexInput.addEventListener('change', applyFilters);
@@ -164,6 +165,7 @@ async function loadShowings({ force = false } = {}) {
 
     allShowings = prepareShowings(body.showings || []);
     dataStale = false;
+    lastLoadError = null;
     updateFilterOptions(allShowings);
     applyFilters();
   } catch (error) {
@@ -171,28 +173,28 @@ async function loadShowings({ force = false } = {}) {
       return;
     }
 
-    statusEl.textContent = 'Screenings unavailable';
-    if (allShowings.length === 0) {
-      showingsEl.replaceChildren(emptyState('Could not load screenings', friendlyLoadError(error)));
-    }
+    dataStale = allShowings.length > 0;
+    lastLoadError = error;
+    updateFilterOptions(allShowings);
+    applyFilters();
   } finally {
     if (loadController?.signal === signal) {
       loadController = null;
+      form.classList.remove('is-loading');
+      showingsEl.setAttribute('aria-busy', 'false');
     }
-    form.classList.remove('is-loading');
-    showingsEl.setAttribute('aria-busy', 'false');
   }
 }
 
-function loadSelectedCity() {
+function markSelectedScanChanged() {
   primaryFilterChanged = true;
-  updateFilterOptions([]);
-  loadShowings();
+  markNeedsRefresh();
 }
 
 function markNeedsRefresh() {
   loadController?.abort();
   dataStale = true;
+  lastLoadError = null;
 
   if (allShowings.length > 0) {
     applyFilters();
@@ -300,7 +302,10 @@ function updateFilterOptions(showings) {
 function renderShowings(showings, { filtered = false } = {}) {
   const theatreGroups = groupByTheatre(showings);
   const groupCount = theatreGroups.length;
-  if (dataStale) {
+  const errorAlert = lastLoadError ? errorState(lastLoadError, { stale: allShowings.length > 0 }) : null;
+  if (lastLoadError) {
+    statusEl.textContent = allShowings.length === 0 ? 'Error loading screenings' : 'Error loading new scan';
+  } else if (dataStale) {
     statusEl.textContent = allShowings.length === 0
       ? 'Press Refresh to load screenings'
       : `${showings.length} shown from previous results. Press Refresh for selected city/date.`;
@@ -309,12 +314,15 @@ function renderShowings(showings, { filtered = false } = {}) {
   }
 
   if (showings.length === 0) {
-    showingsEl.replaceChildren(emptyResultsMessage({ filtered }));
+    showingsEl.replaceChildren(...withErrorAlert(errorAlert, emptyResultsMessage({ filtered })));
     return;
   }
 
   let rowIndex = 0;
   const fragment = document.createDocumentFragment();
+  if (errorAlert) {
+    fragment.append(errorAlert);
+  }
 
   for (const { theatreName, showings: theatreShowings } of theatreGroups) {
     const section = document.createElement('section');
@@ -449,6 +457,20 @@ function emptyState(title, message, { plain = false } = {}) {
   body.textContent = message;
   element.append(heading, body);
   return element;
+}
+
+function errorState(error, { stale }) {
+  const message = stale
+    ? `An error occurred while loading ${selectedCityLabel()} on ${displayDate(dateInput.value)}, so these are the previous results. Try Refresh again in a moment.`
+    : `An error occurred while loading ${selectedCityLabel()} on ${displayDate(dateInput.value)}. ${friendlyLoadError(error)}`;
+  const element = emptyState('Could not load screenings', message);
+  element.className = 'empty-state empty-state--error';
+  element.setAttribute('role', 'alert');
+  return element;
+}
+
+function withErrorAlert(errorAlert, element) {
+  return errorAlert ? [errorAlert, element] : [element];
 }
 
 function friendlyLoadError(error) {

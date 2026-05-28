@@ -282,7 +282,13 @@ export async function loadShowings(cineplex, {
   }
 
   const showings = await mapWithConcurrency(showingsToScan, scanConcurrency, async (showing) => {
-    const counts = countAvailability(await cineplex.getSeatAvailability(showing.theatreId, showing.showtimeId));
+    let counts;
+    try {
+      counts = countAvailability(await cineplex.getSeatAvailability(showing.theatreId, showing.showtimeId));
+    } catch {
+      return null;
+    }
+
     if (counts.totalSeats === 0) {
       return null;
     }
