@@ -92,6 +92,8 @@ let loadController = null;
 let dataStale = true;
 let primaryFilterChanged = false;
 let lastLoadError = null;
+let unavailableStaticScan = null;
+let availableStaticScans = null;
 const showingsResponseCache = new Map();
 
 dateInput.value = todayLocal();
@@ -131,6 +133,7 @@ async function loadCities() {
 async function loadStaticCities() {
   try {
     const body = await fetchJson('data/index.json');
+    setStaticScanAvailability(body.dates || []);
     const citySlugs = sortedValues(new Set([
       ...defaultCities.map(([slug]) => slug),
       ...(body.dates || []).map((entry) => entry.city).filter(Boolean)
@@ -166,6 +169,7 @@ async function loadShowings({ force = false } = {}) {
     allShowings = prepareShowings(body.showings || []);
     dataStale = false;
     lastLoadError = null;
+    unavailableStaticScan = null;
     updateFilterOptions(allShowings);
     applyFilters();
   } catch (error) {
@@ -173,8 +177,19 @@ async function loadShowings({ force = false } = {}) {
       return;
     }
 
+    if (error.name === 'StaticScanUnavailableError') {
+      allShowings = [];
+      dataStale = true;
+      lastLoadError = null;
+      unavailableStaticScan = error;
+      updateFilterOptions([]);
+      applyFilters();
+      return;
+    }
+
     dataStale = allShowings.length > 0;
     lastLoadError = error;
+    unavailableStaticScan = null;
     updateFilterOptions(allShowings);
     applyFilters();
   } finally {
@@ -195,6 +210,7 @@ function markNeedsRefresh() {
   loadController?.abort();
   dataStale = true;
   lastLoadError = null;
+  unavailableStaticScan = null;
 
   if (allShowings.length > 0) {
     applyFilters();
@@ -210,6 +226,14 @@ async function fetchShowings(city, date, signal, { force = false } = {}) {
   const cached = showingsResponseCache.get(cacheKey);
   if (!force && cached && cached.expiresAt > Date.now()) {
     return cached.body;
+  }
+
+  if (availableStaticScans) {
+    if (!hasStaticScan(city, date)) {
+      throw new StaticScanUnavailableError(city, date);
+    }
+
+    return cacheShowingsResponse(cacheKey, await fetchJson(`data/showings-${city}-${date}.json`, signal));
   }
 
   const params = new URLSearchParams({ city, date, all: '1' });
@@ -303,7 +327,9 @@ function renderShowings(showings, { filtered = false } = {}) {
   const theatreGroups = groupByTheatre(showings);
   const groupCount = theatreGroups.length;
   const errorAlert = lastLoadError ? errorState(lastLoadError, { stale: allShowings.length > 0 }) : null;
-  if (lastLoadError) {
+  if (unavailableStaticScan) {
+    statusEl.textContent = 'No saved scan for selected date';
+  } else if (lastLoadError) {
     statusEl.textContent = allShowings.length === 0 ? 'Error loading screenings' : 'Error loading new scan';
   } else if (dataStale) {
     statusEl.textContent = allShowings.length === 0
@@ -311,6 +337,11 @@ function renderShowings(showings, { filtered = false } = {}) {
       : `${showings.length} shown from previous results. Press Refresh for selected city/date.`;
   } else {
     statusEl.textContent = `${showings.length} found${filtered ? ' after filters' : ` across ${groupCount} Cineplex theatres`}`;
+  }
+
+  if (unavailableStaticScan) {
+    showingsEl.replaceChildren(unavailableStaticScanState());
+    return;
   }
 
   if (showings.length === 0) {
@@ -469,8 +500,70 @@ function errorState(error, { stale }) {
   return element;
 }
 
+function unavailableStaticScanState() {
+  const dateRange = staticDateRangeLabel();
+  const message = dateRange
+    ? `The deployed site has saved scans from ${dateRange}. Pick an available date, then press Refresh.`
+    : 'The deployed site has not generated this saved scan yet. Pick another date, then press Refresh.';
+
+  return emptyState('No saved scan for this date yet', message);
+}
+
 function withErrorAlert(errorAlert, element) {
   return errorAlert ? [errorAlert, element] : [element];
+}
+
+function setStaticScanAvailability(entries) {
+  availableStaticScans = new Map();
+  const dates = [];
+
+  for (const entry of entries) {
+    if (!entry?.city || !entry?.date) {
+      continue;
+    }
+
+    if (!availableStaticScans.has(entry.city)) {
+      availableStaticScans.set(entry.city, new Set());
+    }
+
+    availableStaticScans.get(entry.city).add(entry.date);
+    dates.push(entry.date);
+  }
+
+  if (dates.length === 0) {
+    return;
+  }
+
+  dates.sort();
+  dateInput.min = dates[0];
+  dateInput.max = dates[dates.length - 1];
+
+  if (!dateInput.value || dateInput.value < dateInput.min || dateInput.value > dateInput.max) {
+    dateInput.value = dateInput.min;
+  }
+}
+
+function hasStaticScan(city, date) {
+  return availableStaticScans?.get(city)?.has(date) === true;
+}
+
+function staticDateRangeLabel() {
+  if (!dateInput.min || !dateInput.max) {
+    return '';
+  }
+
+  if (dateInput.min === dateInput.max) {
+    return displayDate(dateInput.min);
+  }
+
+  return `${displayDate(dateInput.min)} to ${displayDate(dateInput.max)}`;
+}
+
+class StaticScanUnavailableError extends Error {
+  constructor(city, date) {
+    super(`No saved scan is available for ${city} on ${date}`);
+    this.name = 'StaticScanUnavailableError';
+  }
 }
 
 function friendlyLoadError(error) {

@@ -26,6 +26,8 @@ jobs:
           node-version: 20
       - run: npm test
       - run: npm run build:pages-data
+        env:
+          STATIC_DAYS: 7
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

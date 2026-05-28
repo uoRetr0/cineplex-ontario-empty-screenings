@@ -188,6 +188,8 @@ test('static city fallback keeps default cities when generated data is partial',
   assert.equal(city.options.some((option) => option.value === 'barrhaven'), false);
   assert.ok(city.options.some((option) => option.value === 'toronto'));
   assert.ok(city.options.some((option) => option.value === 'london'));
+  assert.equal(date.min, '2026-05-24');
+  assert.equal(date.max, '2026-05-24');
 });
 
 test('initial city loading does not scan screenings automatically', async () => {
@@ -506,6 +508,69 @@ test('failed refresh keeps previous movie options and shows an error card', asyn
   assert.equal(movie.options.some((option) => option.value === 'Quiet Movie'), true);
   assert.equal(status.textContent, 'Error loading new scan');
   assert.equal(showings.children[0].children[0].className, 'empty-state empty-state--error');
+});
+
+test('static deployment shows unavailable dates without an error card', async () => {
+  const requestedUrls = [];
+  const form = new FakeElement();
+  const city = new FakeSelect();
+  const date = new FakeElement();
+  const threshold = new FakeElement();
+  const cineplex = new FakeSelect();
+  const movie = new FakeSelect();
+  const status = new FakeElement();
+  const showings = new FakeElement();
+  form.elements = { city, date, threshold, cineplex, movie };
+
+  vm.runInNewContext(await readFile(new URL('../public/app.js', import.meta.url), 'utf8'), {
+    document: new FakeDocument(form, status, showings),
+    Intl,
+    Date,
+    AbortController,
+    URLSearchParams,
+    Option: class {
+      constructor(label, value) {
+        this.label = label;
+        this.text = label;
+        this.textContent = label;
+        this.value = value;
+      }
+    },
+    fetch(url) {
+      requestedUrls.push(String(url));
+      if (String(url) === 'api/cities') {
+        return Promise.resolve({
+          ok: false,
+          async json() {
+            return { error: 'Not found' };
+          }
+        });
+      }
+
+      if (String(url) === 'data/index.json') {
+        return Promise.resolve({
+          ok: true,
+          async json() {
+            return { dates: [{ city: 'ottawa', date: '2026-05-24' }] };
+          }
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    }
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  city.value = 'ottawa';
+  date.value = '2026-05-25';
+  form.dispatch('submit');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(requestedUrls.some((url) => url.startsWith('api/showings?')), false);
+  assert.equal(requestedUrls.some((url) => url.startsWith('data/showings-')), false);
+  assert.equal(status.textContent, 'No saved scan for selected date');
+  assert.equal(showings.children[0].className, 'empty-state');
+  assert.equal(showings.children[0].children[0].textContent, 'No saved scan for this date yet');
 });
 
 test('manual refreshes request a fresh scan', async () => {
